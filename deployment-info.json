@@ -1,0 +1,8 @@
+{
+  "unrealToken": "0xB20302C0962aE621c18520bb8BA6Efc29cC793e0",
+  "unrealHTLC": "0xbcccb07D3356D12d05562aBB62B363dF5dD4286D",
+  "unrealBridge": "0xa5D46EBEc77F7B0ceC03ea20Cf652a47c48eA19E",
+  "chainId": 128123,
+  "nearHtlc": "htlc.unrealai.testnet",
+  "nearToken": "token.unrealai.testnet"
+}
