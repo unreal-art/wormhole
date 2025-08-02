@@ -2,7 +2,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useWalletSelector } from '@near-wallet-selector/react-hook';
-import NearLogo from '/public/near-logo.svg';
 
 export const Navigation = () => {
   const { signedAccountId, signIn, signOut } = useWalletSelector();
@@ -26,7 +25,7 @@ export const Navigation = () => {
           <Link href="/" className="flex items-center">
             <Image 
               priority 
-              src={NearLogo} 
+              src="/unreal-logo.svg" 
               alt="UNREAL" 
               width={30} 
               height={30} 

@@ -1,15 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import SwapPage from './swap/page';
 
+// Expose the swap page directly at the root route (/)
 export default function Home() {
-  const router = useRouter();
-  
-  useEffect(() => {
-    // Redirect to /swap page
-    router.replace('/swap');
-  }, [router]);
-  
-  return null; // No UI to render as we're redirecting
+  return <SwapPage />;
 }
