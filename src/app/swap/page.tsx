@@ -7,10 +7,11 @@ import { ChainConfigs, EtherlinkContracts, NearContracts } from '@/config';
 import { createPublicClient, http, parseEther, parseUnits } from 'viem';
 import { getWalletClient, getTokenBalance as getEtherlinkBalance, approveToken, lockTokens as lockEtherlinkTokens } from '@/utils/etherlinkContract';
 import { useNearContract } from '@/utils/nearContract';
+import { getSwapQuote, formatTokenAmount } from '@/utils/oneInchApi';
 import { utils } from 'near-api-js';
 
 // Token image placeholder (replace with actual UNREAL token logo)
-const UnrealLogo = '/near-logo.svg'; // Placeholder
+const UnrealLogoPath = '/unreal-logo.svg';
 
 export default function SwapPage() {
   const { signedAccountId, signIn } = useWalletSelector();
@@ -29,9 +30,12 @@ export default function SwapPage() {
   const [etherlinkBalance, setEtherlinkBalance] = useState<string>('0');
   const [nearBalance, setNearBalance] = useState<string>('0');
   
-  // Swap state
-  const [swapHash, setSwapHash] = useState<string>('');
+  // 1inch API states
+  const [quoteLoading, setQuoteLoading] = useState<boolean>(false);
+  const [swapQuote, setSwapQuote] = useState<string | null>(null);
+  const [apiKey, setApiKey] = useState<string>(''); // In production, store API key in env variables
   const [swapSecret, setSwapSecret] = useState<string>('');
+  const [swapHash, setSwapHash] = useState<string>('');
   
   // Swap chains function
   const handleSwapChains = () => {
@@ -39,11 +43,42 @@ export default function SwapPage() {
     setTargetChain(sourceChain);
   };
 
-  // Handle amount change with input validation
+  // Handle amount change with input validation and fetch quote if possible
   const handleAmountChange = (value: string) => {
     // Only allow numbers and decimals
     if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value)) {
       setAmount(value);
+      
+      // If we have a valid amount, wallet address, and source chain is Etherlink, get a quote
+      if (value && parseFloat(value) > 0 && evmAddress && sourceChain === 'etherlink' && apiKey) {
+        try {
+          setQuoteLoading(true);
+          // Convert amount to wei (18 decimals)
+          const amountWei = BigInt(Math.floor(parseFloat(value) * Math.pow(10, 18))).toString();
+          
+          // Use 1inch API to get quote
+          getSwapQuote(
+            EtherlinkContracts.unrealToken, // From UNREAL on Etherlink
+            EtherlinkContracts.unrealToken, // To UNREAL on Etherlink (same token for demo)
+            amountWei,
+            apiKey
+          ).then((quote) => {
+            // Format the quote amount
+            setSwapQuote(formatTokenAmount(quote.toAmount, 18));
+            setQuoteLoading(false);
+          }).catch((error) => {
+            console.error('Error getting swap quote:', error);
+            setSwapQuote(null);
+            setQuoteLoading(false);
+          });
+        } catch (error) {
+          console.error('Error preparing swap quote:', error);
+          setSwapQuote(null);
+          setQuoteLoading(false);
+        }
+      } else {
+        setSwapQuote(null);
+      }
     }
   };
   
@@ -51,7 +86,7 @@ export default function SwapPage() {
   useEffect(() => {
     const connectEtherlinkWallet = async () => {
       try {
-        const walletClient = getWalletClient();
+        const walletClient = await getWalletClient();
         if (walletClient) {
           const addresses = await walletClient.getAddresses();
           if (addresses.length > 0) {
@@ -217,7 +252,7 @@ export default function SwapPage() {
               <div className="flex items-center space-x-2">
                 <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
                   <Image
-                    src={sourceChain === 'near' ? '/near-logo.svg' : UnrealLogo}
+                    src={sourceChain === 'near' ? '/near-logo.svg' : UnrealLogoPath}
                     alt={sourceChain === 'near' ? 'NEAR' : 'Etherlink'}
                     width={24}
                     height={24}
@@ -272,7 +307,7 @@ export default function SwapPage() {
               <div className="flex items-center space-x-2">
                 <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
                   <Image
-                    src={targetChain === 'near' ? '/near-logo.svg' : UnrealLogo}
+                    src={targetChain === 'near' ? '/near-logo.svg' : UnrealLogoPath}
                     alt={targetChain === 'near' ? 'NEAR' : 'Etherlink'}
                     width={24}
                     height={24}
@@ -322,6 +357,37 @@ export default function SwapPage() {
               </div>
             </div>
           )}
+
+          {/* Price Quote Info */}
+          <div className="p-4 mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 rounded-xl">
+            <div className="flex justify-between mb-1">
+              <span>Exchange Rate</span>
+              <span>1 UNREAL = 1 UNREAL</span>
+            </div>
+            <div className="flex justify-between mb-1">
+              <span>Network Fee</span>
+              <span>~0.01 {sourceChain === 'near' ? 'NEAR' : 'TEZ'}</span>
+            </div>
+            <div className="flex justify-between mb-1">
+              <span>Expected Output</span>
+              <div>
+                {quoteLoading ? (
+                  <span className="text-sm text-gray-500 animate-pulse">Loading quote...</span>
+                ) : sourceChain === 'etherlink' && swapQuote ? (
+                  <span>{swapQuote} UNREAL <span className="text-xs text-green-500">(via 1inch)</span></span>
+                ) : (
+                  <span>{amount || '0'} UNREAL</span>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-between">
+              <span>Connected Accounts</span>
+              <span className="flex flex-col text-right">
+                <span className="text-xs">{evmAddress ? `${evmAddress.slice(0,6)}...${evmAddress.slice(-4)}` : 'No EVM wallet'}</span>
+                <span className="text-xs">{signedAccountId || 'No NEAR wallet'}</span>
+              </span>
+            </div>
+          </div>
           
           {/* Swap Button */}
           {(!signedAccountId && !evmAddress) ? (
@@ -354,77 +420,6 @@ export default function SwapPage() {
               )}
             </button>
           )}
-        </div>
-        
-        {/* Card Footer */}
-        <div className="p-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
-          <div className="flex justify-between mb-1">
-            <span>Exchange Rate</span>
-            <span>1 UNREAL = 1 UNREAL</span>
-          </div>
-          <div className="flex justify-between mb-1">
-            <span>Network Fee</span>
-            <span>~0.01 {sourceChain === 'near' ? 'NEAR' : 'TEZ'}</span>
-          </div>
-          <div className="flex justify-between mb-1">
-            <span>Expected Output</span>
-            <span>{amount || '0'} UNREAL</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Connected Accounts</span>
-            <span className="flex flex-col text-right">
-              <span className="text-xs">{evmAddress ? `${evmAddress.slice(0,6)}...${evmAddress.slice(-4)}` : 'No EVM wallet'}</span>
-              <span className="text-xs">{signedAccountId ? signedAccountId : 'No NEAR wallet'}</span>
-            </span>
-          </div>
-        </div>
-      </div>
-      
-      {/* Transaction Steps */}
-      <div className="w-full max-w-md mt-8">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Transaction Process</h3>
-        <div className="relative">
-          {/* Progress Line */}
-          <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
-          
-          {/* Step 1 */}
-          <div className="flex mb-6 relative">
-            <div className={`z-10 flex items-center justify-center w-8 h-8 rounded-full ${swapStatus !== 'idle' ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
-              1
-            </div>
-            <div className="ml-4">
-              <h4 className="text-sm font-medium text-gray-800 dark:text-white">Approve Token</h4>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Allow the contract to use your UNREAL tokens
-              </p>
-            </div>
-          </div>
-          
-          {/* Step 2 */}
-          <div className="flex mb-6 relative">
-            <div className={`z-10 flex items-center justify-center w-8 h-8 rounded-full ${swapStatus === 'completed' ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
-              2
-            </div>
-            <div className="ml-4">
-              <h4 className="text-sm font-medium text-gray-800 dark:text-white">Initiate Swap</h4>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Lock tokens on the source chain
-              </p>
-            </div>
-          </div>
-          
-          {/* Step 3 */}
-          <div className="flex relative">
-            <div className={`z-10 flex items-center justify-center w-8 h-8 rounded-full ${swapStatus === 'completed' ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
-              3
-            </div>
-            <div className="ml-4">
-              <h4 className="text-sm font-medium text-gray-800 dark:text-white">Complete Swap</h4>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Release tokens on the target chain
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
