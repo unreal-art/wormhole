@@ -50,7 +50,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <body className="h-full">
         <WalletSelectorProvider config={walletSelectorConfig}>
           <Navigation />
-          <main className="container mx-auto px-4 py-8">
+          <main className="container mx-auto px-4 py-8 bg-red-500 text-white">
             {children}
           </main>
         </WalletSelectorProvider>
