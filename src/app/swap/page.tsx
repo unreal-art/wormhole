@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useWalletSelector } from '@near-wallet-selector/react-hook';
 import { ChainConfigs, EtherlinkContracts, NearContracts } from '@/config';
+import { DutchAuctionBox } from '@/components/DutchAuctionBox';
 import { createPublicClient, http, parseEther, parseUnits } from 'viem';
 import { getWalletClient, getTokenBalance as getEtherlinkBalance, approveToken, lockTokens as lockEtherlinkTokens } from '@/utils/etherlinkContract';
 import { useNearContract } from '@/utils/nearContract';
@@ -14,6 +15,9 @@ import { utils } from 'near-api-js';
 const UnrealLogoPath = '/unreal-logo.svg';
 
 export default function SwapPage() {
+  // Dutch auction commit state
+  const [auctionNonce, setAuctionNonce] = useState<number>(0);
+  const [fakeSignature, setFakeSignature] = useState<string>('');
   const { signedAccountId, signIn } = useWalletSelector();
   const nearContract = useNearContract();
   
@@ -153,12 +157,45 @@ export default function SwapPage() {
     
     try {
       // Determine which direction we're swapping
+      let nonce = 0;
+      let signature = '';
       if (sourceChain === 'etherlink' && targetChain === 'near') {
         // Etherlink -> NEAR
         if (!evmAddress || !signedAccountId) {
           throw new Error('Both wallets must be connected');
         }
         
+        // Fetch ERC20 nonce FIRST (simulate by getting transaction count for demo)
+        try {
+          const publicClient = createPublicClient({
+            chain: ChainConfigs.etherlink,
+            transport: http(ChainConfigs.etherlink.rpcUrls[0]),
+          });
+          nonce = await publicClient.getTransactionCount({ address: evmAddress });
+        } catch (e) { nonce = Math.floor(Math.random()*1000); }
+        setAuctionNonce(nonce);
+        
+        // Sign commit with EVM wallet BEFORE swap (wallet popup appears immediately)
+        try {
+          const walletClient = await getWalletClient();
+          if (walletClient && evmAddress) {
+            const commitMsg = `Commit|Token:${EtherlinkContracts.unrealToken}|Nonce:${nonce}|Amount:${amount}|User:${evmAddress}`;
+            signature = await walletClient.signMessage({
+              account: evmAddress,
+              message: commitMsg
+            });
+            setFakeSignature(signature);
+          } else {
+            setFakeSignature('Wallet not available');
+            throw new Error('Wallet not available for signing');
+          }
+        } catch (err) {
+          console.error('Signature failed:', err);
+          setFakeSignature('Signature failed or rejected');
+          throw new Error('ERC20 commit signing failed or rejected by user');
+        }
+        
+        // After signature is obtained, proceed with swap
         // 1. Approve tokens
         const approvalTx = await approveToken(amount);
         console.log('Token approval transaction:', approvalTx);
@@ -207,6 +244,8 @@ export default function SwapPage() {
     setAmount('');
     setTransactionHash(null);
     setSwapStatus('idle');
+    setAuctionNonce(0);
+    setFakeSignature('');
   };
   
   return (
@@ -422,6 +461,16 @@ export default function SwapPage() {
           )}
         </div>
       </div>
+      {/* Dutch Auction Box after swap completion */}
+      {swapStatus === 'completed' && (
+        <DutchAuctionBox
+          tokenAddress={EtherlinkContracts.unrealToken}
+          nonce={auctionNonce}
+          amount={amount}
+          user={evmAddress || ''}
+          fakeSignature={fakeSignature}
+        />
+      )}
     </div>
   );
 }
