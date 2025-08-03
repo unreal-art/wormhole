@@ -2,25 +2,15 @@ import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { createAppKit } from "@reown/appkit/react";
 import { nearTestnet } from "@reown/appkit/networks";
 import { reconnect } from "@wagmi/core";
-import { EtherlinkChainId } from "@/config";
+import { ETHERLINK_CHAIN } from "@/config";
 
 // Get a project ID at https://cloud.reown.com
 const projectId = "30147604c5f01d0bc4482ab0665b5697";
 
-// Custom Etherlink chain config for @reown/appkit
+// Custom Etherlink chain config derived from central definition
 const etherlinkTestnet = {
-  id: EtherlinkChainId,
-  name: "Etherlink Testnet",
-  network: "etherlink-testnet",
-  nativeCurrency: {
-    decimals: 18,
-    name: "TEZ",
-    symbol: "TEZ",
-  },
-  rpcUrls: {
-    public: { http: ["https://node.testnet.etherlink.com"] },
-    default: { http: ["https://node.testnet.etherlink.com"] },
-  },
+  ...ETHERLINK_CHAIN,
+  // Ensure blockExplorers field exists for AppKit
   blockExplorers: {
     default: { name: "Etherlink Explorer", url: "https://explorer.etherlink.com" },
   },

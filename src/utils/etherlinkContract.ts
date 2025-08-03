@@ -8,27 +8,10 @@ import {
   parseUnits, 
   formatUnits 
 } from 'viem';
-import { EtherlinkChainId, EtherlinkContracts } from '@/config';
+import { ETHERLINK_CHAIN, EtherlinkContracts } from '@/config';
 
-// Etherlink Chain Configuration
-const etherlinkChain = {
-  id: EtherlinkChainId,
-  name: 'Etherlink Testnet',
-  network: 'etherlink-testnet',
-  nativeCurrency: {
-    name: 'TEZ',
-    symbol: 'TEZ',
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: {
-      http: ['https://node.testnet.etherlink.com'],
-    },
-    public: {
-      http: ['https://node.testnet.etherlink.com'],
-    },
-  },
-};
+// Use shared Etherlink chain definition from config
+const etherlinkChain = ETHERLINK_CHAIN;
 
 // ABIs for the contracts
 const tokenAbi = parseAbi([
