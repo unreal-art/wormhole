@@ -2,22 +2,28 @@ import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useWalletSelector } from "@near-wallet-selector/react-hook"
-import { ConnectWallet, useAddress, useDisconnect } from "@thirdweb-dev/react"
+import { ConnectWallet, useAddress } from "@thirdweb-dev/react"
 
 export const Navigation = () => {
   // NEAR wallet handling
   const { signedAccountId, signIn, signOut } = useWalletSelector()
   const [nearAction, setNearAction] = useState<() => void>(() => {})
   const [nearLabel, setNearLabel] = useState<string>("Loading...")
-  
+
   // Ethereum wallet handling with thirdweb
   const ethAddress = useAddress()
   const disconnect = useDisconnect()
 
+  // Set up NEAR wallet connection button behavior
   useEffect(() => {
     if (signedAccountId) {
       setNearAction(() => signOut)
       setNearLabel(`NEAR: ${signedAccountId.substring(0, 6)}...`)
+    } else {
+      setNearAction(() => signIn)
+      setNearLabel("Connect NEAR")
+    }
+  }, [signedAccountId, signIn, signOut])
 
   useEffect(() => {
     // Check if Ethereum wallet is connected
