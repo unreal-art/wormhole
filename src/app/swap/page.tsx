@@ -15,13 +15,21 @@ import {
 import { useNearContract } from "@/utils/nearContract"
 import { getSwapQuote, formatTokenAmount } from "@/utils/oneInchApi"
 import { utils } from "near-api-js"
+import dynamic from "next/dynamic"
+import { ETHERLINK_CHAIN } from "@/config"
+
+// Dynamically import the test component with SSR disabled
+const TestNearConnection = dynamic(
+  () => import("@/components/TestNearConnection"),
+  { ssr: false }
+)
 
 // Token image placeholder (replace with actual UNREAL token logo)
 const UnrealLogoPath = "/unreal-logo.svg"
 
 export default function SwapPage() {
-  // Dutch auction commit state
-  const [auctionNonce, setAuctionNonce] = useState<string>("0")
+  // Dutch auction commit state - using number for consistency with the rest of the app
+  const [auctionNonce, setAuctionNonce] = useState<number>(0)
   const [fakeSignature, setFakeSignature] = useState<string>("")
   const { signedAccountId, signIn } = useWalletSelector()
   const nearContract = useNearContract()
@@ -187,16 +195,18 @@ export default function SwapPage() {
           throw new Error("Both wallets must be connected")
         }
 
+        // Use the imported ETHERLINK_CHAIN from config
         const publicClient = createPublicClient({
-          chain: ChainConfigs.etherlink,
-          transport: http(ChainConfigs.etherlink.rpcUrls[0]),
+          chain: ETHERLINK_CHAIN,
+          transport: http(ETHERLINK_CHAIN.rpcUrls.default.http[0]),
         })
 
-        const spenderAddress = "0xbcccb07D3356D12d05562aBB62B363dF5dD4286D" //TODO: parameterize
+        const spenderAddress =
+          "0xbcccb07D3356D12d05562aBB62B363dF5dD4286D" as const //TODO: parameterize
 
         // Get the correct permit nonce (not transaction nonce)
-        let nonce_ = await publicClient.readContract({
-          address: EtherlinkContracts.unrealToken,
+        const nonce = await publicClient.readContract({
+          address: EtherlinkContracts.unrealToken as `0x${string}`,
           abi: [
             {
               name: "nonces",
@@ -210,9 +220,13 @@ export default function SwapPage() {
           args: [evmAddress],
         })
 
-        nonce = nonce_.toString()
+        // Set a default nonce if not set
+        if (!auctionNonce) {
+          setAuctionNonce(Date.now())
+        }
 
-        setAuctionNonce(nonce)
+        // Update the nonce
+        setAuctionNonce(Number(nonce))
 
         // Sign commit with EVM wallet BEFORE swap
         const walletClient = await getWalletClient()
@@ -223,7 +237,7 @@ export default function SwapPage() {
 
             // Get token name and version
             const tokenName = await publicClient.readContract({
-              address: EtherlinkContracts.unrealToken,
+              address: EtherlinkContracts.unrealToken as `0x${string}`,
               abi: [
                 {
                   name: "name",
@@ -236,26 +250,13 @@ export default function SwapPage() {
               functionName: "name",
             })
 
-            const tokenVersion = await publicClient.readContract({
-              address: EtherlinkContracts.unrealToken,
-              abi: [
-                {
-                  name: "version",
-                  type: "function",
-                  stateMutability: "view",
-                  inputs: [],
-                  outputs: [{ name: "", type: "string" }],
-                },
-              ],
-              functionName: "version",
-            })
-
-            // Define the EIP-712 domain
+            // Define the EIP-712 domain with proper types
             const domain = {
               name: tokenName,
-              version: tokenVersion,
+              version: "1",
               chainId: chainId,
-              verifyingContract: EtherlinkContracts.unrealToken,
+              verifyingContract:
+                EtherlinkContracts.unrealToken as `0x${string}`,
             }
 
             // Define the permit types
@@ -272,8 +273,8 @@ export default function SwapPage() {
             const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600)
 
             const message = {
-              owner: evmAddress,
-              spender: spenderAddress, // Define your spender address
+              owner: evmAddress as `0x${string}`,
+              spender: spenderAddress as `0x${string}`, // Define your spender address
               value: parseUnits(amount, 18), // Convert amount to proper units
               nonce: BigInt(nonce), // Use the correct permit nonce
               deadline: deadline,
@@ -289,10 +290,14 @@ export default function SwapPage() {
             })
 
             setFakeSignature(signature)
-          } catch (error) {
+          } catch (error: unknown) {
             console.error("Permit signing failed:", error)
+            const errorMessage =
+              error instanceof Error
+                ? error.message
+                : "Unknown error during permit signing"
             setFakeSignature("Permit signing failed")
-            throw new Error(`Permit signing failed: ${error.message}`)
+            throw new Error(`Permit signing failed: ${errorMessage}`)
           }
         }
 
@@ -304,14 +309,27 @@ export default function SwapPage() {
         // 2. Lock tokens in Etherlink HTLC
         // Use 24 hours for timelock
         const timelock = Math.floor(Date.now() / 1000) + 86400
-        const lockTx = await lockEtherlinkTokens(
+
+        // Create a hash of the swap details for the HTLC using Web Crypto API
+        const encoder = new TextEncoder()
+        const data = encoder.encode(
+          `${signedAccountId}-${auctionNonce}-${timelock}`
+        )
+        const hashBuffer = await crypto.subtle.digest("SHA-256", data)
+        const hashArray = Array.from(new Uint8Array(hashBuffer))
+        const hashHex =
+          "0x" + hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")
+        const swapHash = hashHex as `0x${string}`
+
+        // Lock tokens in the HTLC
+        const tx = await lockEtherlinkTokens(
           amount,
-          swapHash as `0x${string}`,
+          swapHash,
           timelock,
-          evmAddress
+          evmAddress as `0x${string}`
         )
 
-        setTransactionHash(lockTx)
+        setTransactionHash(tx)
         setSwapStatus("completed")
       } else if (sourceChain === "near" && targetChain === "etherlink") {
         // NEAR -> Etherlink
@@ -319,14 +337,25 @@ export default function SwapPage() {
           throw new Error("Both wallets must be connected")
         }
 
-        // Lock tokens in NEAR HTLC
+        // 1. Lock tokens in NEAR HTLC
         // Use 24 hours for timelock
         const timelock = Math.floor(Date.now() / 1000) + 86400
+
+        // Create a hash of the swap details for the HTLC using Web Crypto API
+        const encoder = new TextEncoder()
+        const data = encoder.encode(`${evmAddress}-${auctionNonce}-${timelock}`)
+        const hashBuffer = await crypto.subtle.digest("SHA-256", data)
+        const hashArray = Array.from(new Uint8Array(hashBuffer))
+        const hashHex =
+          "0x" + hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")
+        const swapHash = hashHex as `0x${string}`
+
+        // Lock tokens in the NEAR HTLC
         const lockTx = await nearContract.lockTokens(
           amount,
           swapHash,
           timelock,
-          evmAddress
+          evmAddress as `0x${string}`
         )
 
         setTransactionHash(lockTx)
@@ -345,7 +374,7 @@ export default function SwapPage() {
     setAmount("")
     setTransactionHash(null)
     setSwapStatus("idle")
-    setAuctionNonce(0)
+    setAuctionNonce("0")
     setFakeSignature("")
   }
 
@@ -517,6 +546,12 @@ export default function SwapPage() {
                   Keep this secret secure! It's needed to complete the swap on
                   the target chain.
                 </p>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Auction ID:</span>
+                <span className="font-mono text-sm">
+                  {auctionNonce ? `#${auctionNonce}` : "--"}
+                </span>
               </div>
             </div>
           )}

@@ -1,44 +1,46 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { ReactNode } from 'react';
-
 import '@/app/globals.css';
 import { Navigation } from '@/components/navigation';
 import '@near-wallet-selector/modal-ui/styles.css';
 import { setupMyNearWallet } from '@near-wallet-selector/my-near-wallet';
 import { setupMeteorWallet } from '@near-wallet-selector/meteor-wallet';
-import { setupMeteorWalletApp } from '@near-wallet-selector/meteor-wallet-app';
-import { setupBitteWallet } from '@near-wallet-selector/bitte-wallet';
-// import { setupEthereumWallets } from '@near-wallet-selector/ethereum-wallets';
-import { setupHotWallet } from '@near-wallet-selector/hot-wallet';
-import { setupLedger } from '@near-wallet-selector/ledger';
-import { setupSender } from '@near-wallet-selector/sender';
-import { setupHereWallet } from '@near-wallet-selector/here-wallet';
-import { setupNearMobileWallet } from '@near-wallet-selector/near-mobile-wallet';
-import { setupWelldoneWallet } from '@near-wallet-selector/welldone-wallet';
-import { HelloNearContract, NetworkId } from '@/config';
+import { NearContracts, NetworkId } from '@/config';
 import { WalletSelectorProvider } from '@near-wallet-selector/react-hook';
 // Import Web3Modal for Ethereum wallet support
 import { wagmiConfig } from "@/wallets/web3modal";
 import { WagmiConfig } from "wagmi";
 
+// Create wallet selector config with minimal required wallets
 const walletSelectorConfig = {
-  network: NetworkId,
-  // createAccessKeyFor: HelloNearContract,
+  network: NetworkId as 'testnet' | 'mainnet',
+  debug: true,
+  selectorOptions: {
+    accountId: undefined,
+    contractId: NearContracts.token,
+  },
+  // Only include essential wallet modules to avoid type issues
   modules: [
+    // MyNearWallet is the most commonly used wallet
+    setupMyNearWallet({
+      walletUrl: NetworkId === 'testnet' 
+        ? 'https://testnet.mynearwallet.com'
+        : 'https://app.mynearwallet.com',
+    }),
+    // Add Meteor Wallet as a fallback
     setupMeteorWallet(),
-    // Removed setupEthereumWallets since we're now using ThirdWeb
-    setupBitteWallet(),
-    setupMeteorWalletApp({ contractId: HelloNearContract }),
-    setupHotWallet(),
-    setupLedger(),
-    setupSender(),
-    setupHereWallet(),
-    setupNearMobileWallet(),
-    setupWelldoneWallet(),
-    setupMyNearWallet(),
   ],
+  // Explicitly set the RPC URL for NEAR
+  provider: {
+    type: 'JsonRpcProvider',
+    args: {
+      url: NetworkId === 'testnet' 
+        ? 'https://rpc.testnet.near.org' 
+        : 'https://rpc.mainnet.near.org',
+      headers: {}
+    }
+  }
 };
 
 interface RootLayoutProps {
