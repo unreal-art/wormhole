@@ -2,13 +2,7 @@ interface ContractMap {
   [key: string]: string
 }
 
-const contractPerNetwork: ContractMap = {
-  mainnet: "hello.near-examples.near",
-  testnet: "hello.near-examples.testnet",
-}
-
 export const NetworkId: string = "testnet"
-export const HelloNearContract: string = contractPerNetwork[NetworkId]
 
 // Etherlink and NEAR contract information from deployment-info.json
 export const EtherlinkChainId = 128123
