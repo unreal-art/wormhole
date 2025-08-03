@@ -19,8 +19,9 @@ import { setupNearMobileWallet } from '@near-wallet-selector/near-mobile-wallet'
 import { setupWelldoneWallet } from '@near-wallet-selector/welldone-wallet';
 import { HelloNearContract, NetworkId } from '@/config';
 import { WalletSelectorProvider } from '@near-wallet-selector/react-hook';
-// Import ThirdwebProvider for Ethereum wallet support
-import { ThirdwebProvider } from '@/providers/ThirdwebProvider';
+// Import Web3Modal for Ethereum wallet support
+import { Web3Modal } from "@web3modal/react";
+import { wagmiAdapter } from "@/wallets/web3modal";
 
 const walletSelectorConfig = {
   network: NetworkId,
@@ -49,17 +50,15 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" className="h-full bg-gradient-to-b from-indigo-950 to-purple-900 text-white">
       <body className="h-full bg-gradient-to-br from-indigo-950 via-purple-900 to-indigo-900">
-        {/* Wrap the app with ThirdwebProvider for Ethereum wallet integration */}
-        <ThirdwebProvider>
-          {/* Keep WalletSelectorProvider for NEAR wallet integration */}
-          <WalletSelectorProvider config={walletSelectorConfig}>
-            <Navigation />
-            <main className="container mx-auto px-4 py-8 mt-20 rounded-xl bg-white/10 backdrop-blur-sm shadow-xl border border-purple-500/30 text-white">
-              {children}
-            </main>
-          </WalletSelectorProvider>
-        </ThirdwebProvider>
+        <WalletSelectorProvider config={walletSelectorConfig}>
+          <Navigation />
+          <main className="container mx-auto px-4 py-8 mt-20 rounded-xl bg-white/10 backdrop-blur-sm shadow-xl border border-purple-500/30">
+            {children}
+          </main>
+          {/* Web3Modal component - must be outside the main layout */}
+          <Web3Modal config={wagmiAdapter.config} />
+        </WalletSelectorProvider>
       </body>
     </html>
-  );
+  )
 }

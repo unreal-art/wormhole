@@ -2,17 +2,20 @@ import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useWalletSelector } from "@near-wallet-selector/react-hook"
-import { ConnectWallet, useAddress } from "@thirdweb-dev/react"
+import { useWeb3Modal } from "@web3modal/react"
+import { useAccount, useDisconnect } from "wagmi"
 
 export const Navigation = () => {
   // NEAR wallet handling
   const { signedAccountId, signIn, signOut } = useWalletSelector()
   const [nearAction, setNearAction] = useState<() => void>(() => {})
   const [nearLabel, setNearLabel] = useState<string>("Loading...")
-
-  // Ethereum wallet handling with thirdweb
-  const ethAddress = useAddress()
-  const disconnect = useDisconnect()
+  
+  // Ethereum wallet handling with wagmi/web3modal
+  const { open } = useWeb3Modal()
+  const { address, isConnected } = useAccount()
+  const { disconnect } = useDisconnect()
+  const [ethLabel, setEthLabel] = useState<string>("Connect ETH")
 
   // Set up NEAR wallet connection button behavior
   useEffect(() => {
@@ -25,40 +28,14 @@ export const Navigation = () => {
     }
   }, [signedAccountId, signIn, signOut])
 
+  // Handle Ethereum wallet connection display
   useEffect(() => {
-    // Check if Ethereum wallet is connected
-    const checkEthConnection = async () => {
-      try {
-        // Get the current state
-        const { wagmi } = await wagmiAdapter.getContext()
-        const accounts = await wagmi.getAccounts()
-        const connectedAddress = accounts[0] || ""
-
-        if (connectedAddress) {
-          setEthConnected(true)
-          // Format the address to show only first 6 chars
-          setEthAddress(`ETH: ${connectedAddress.substring(0, 6)}...`)
-        } else {
-          setEthConnected(false)
-          setEthAddress("")
-        }
-      } catch (error) {
-        console.error("Error checking Ethereum wallet connection:", error)
-        setEthConnected(false)
-        setEthAddress("")
-      }
+    if (isConnected && address) {
+      setEthLabel(`ETH: ${address.substring(0, 6)}...`)
+    } else {
+      setEthLabel("Connect ETH")
     }
-
-    checkEthConnection()
-
-    // Subscribe to connection events
-    const unsubscribe = web3Modal.subscribeEvents(() => {
-      // Any event triggers a recheck of connection status
-      checkEthConnection()
-    })
-
-    return () => unsubscribe()
-  }, [])
+  }, [isConnected, address])
 
   return (
     <nav className="bg-indigo-950/80 backdrop-blur-md fixed w-full z-20 top-0 left-0 border-b border-purple-500/30 shadow-lg">
@@ -93,19 +70,13 @@ export const Navigation = () => {
             {nearLabel}
           </button>
 
-          {/* Ethereum Wallet Button with thirdweb */}
-          <ConnectWallet 
-            theme="dark"
-            btnTitle="Connect ETH"
-            modalTitle="Connect Ethereum Wallet"
-            modalSize="wide"
-            welcomeScreen={{
-              title: "UNREAL Swap",
-              subtitle: "Connect your Ethereum wallet to use the swap functionality"
-            }}
-            modalTitleIconUrl="/logo.webp"
-            className="!bg-gradient-to-r !from-blue-600 !to-teal-500 !hover:from-blue-700 !hover:to-teal-600 !rounded-lg !text-sm !px-5 !py-2.5 !transition-all !duration-200 !shadow-lg !shadow-teal-500/20 !hover:shadow-teal-500/40 !transform !hover:scale-105"
-          />
+          {/* Ethereum Wallet Button with wagmi/web3modal */}
+          <button
+            onClick={() => isConnected ? disconnect() : open()}
+            className="text-white bg-gradient-to-r from-blue-600 to-teal-500 hover:bg-gradient-to-br focus:ring-4 focus:outline-none focus:ring-blue-400/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-all duration-200 ease-in-out shadow-lg shadow-teal-500/20 hover:shadow-teal-500/40 transform hover:scale-105"
+          >
+            {ethLabel}
+          </button>
         </div>
       </div>
     </nav>

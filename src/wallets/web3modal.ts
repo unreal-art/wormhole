@@ -1,31 +1,40 @@
-import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
-import { createAppKit } from "@reown/appkit/react";
-import { nearTestnet } from "@reown/appkit/networks";
-import { reconnect } from "@wagmi/core";
-import { ETHERLINK_CHAIN } from "@/config";
+import { WagmiAdapter } from "@reown/appkit-adapter-wagmi"
+import { createAppKit } from "@reown/appkit/react"
+import { reconnect } from "@wagmi/core"
+import { EtherlinkChainId } from "@/config"
 
 // Get a project ID at https://cloud.reown.com
-const projectId = "30147604c5f01d0bc4482ab0665b5697";
+const projectId = "30147604c5f01d0bc4482ab0665b5697"
 
-// Custom Etherlink chain config derived from central definition
-const etherlinkTestnet = {
-  ...ETHERLINK_CHAIN,
-  // Ensure blockExplorers field exists for AppKit
-  blockExplorers: {
-    default: { name: "Etherlink Explorer", url: "https://explorer.etherlink.com" },
+// Define Etherlink Ghost testnet
+const etherlinkGhostTestnet = {
+  id: EtherlinkChainId, // 128123
+  name: "Etherlink Ghost Testnet",
+  network: "etherlink-ghost",
+  nativeCurrency: {
+    name: "TEZ",
+    symbol: "TEZ",
+    decimals: 18
   },
-  testnet: true,
-};
+  rpcUrls: {
+    default: { http: ["https://node.ghostnet.etherlink.com"] },
+    public: { http: ["https://node.ghostnet.etherlink.com"] }
+  },
+  blockExplorers: {
+    default: { name: "Etherlink Explorer", url: "https://explorer.ghostnet.etherlink.com" }
+  },
+  testnet: true
+}
 
 export const wagmiAdapter = new WagmiAdapter({
   projectId,
-  networks: [nearTestnet, etherlinkTestnet],
-});
+  networks: [etherlinkGhostTestnet],
+})
 
 export const web3Modal = createAppKit({
   adapters: [wagmiAdapter],
   projectId,
-  networks: [nearTestnet, etherlinkTestnet],
+  networks: [etherlinkGhostTestnet],
   enableWalletConnect: true,
   features: {
     analytics: true,
