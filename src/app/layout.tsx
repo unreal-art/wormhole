@@ -19,14 +19,15 @@ import { setupNearMobileWallet } from '@near-wallet-selector/near-mobile-wallet'
 import { setupWelldoneWallet } from '@near-wallet-selector/welldone-wallet';
 import { HelloNearContract, NetworkId } from '@/config';
 import { WalletSelectorProvider } from '@near-wallet-selector/react-hook';
-import { wagmiAdapter, web3Modal } from '@/wallets/web3modal';
+// Import ThirdwebProvider for Ethereum wallet support
+import { ThirdwebProvider } from '@/providers/ThirdwebProvider';
 
 const walletSelectorConfig = {
   network: NetworkId,
   // createAccessKeyFor: HelloNearContract,
   modules: [
     setupMeteorWallet(),
-    setupEthereumWallets({ wagmiConfig: wagmiAdapter.wagmiConfig, web3Modal }),
+    // Removed setupEthereumWallets since we're now using ThirdWeb
     setupBitteWallet(),
     setupMeteorWalletApp({ contractId: HelloNearContract }),
     setupHotWallet(),
@@ -48,12 +49,16 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" className="h-full bg-gradient-to-b from-indigo-950 to-purple-900 text-white">
       <body className="h-full bg-gradient-to-br from-indigo-950 via-purple-900 to-indigo-900">
-        <WalletSelectorProvider config={walletSelectorConfig}>
-          <Navigation />
-          <main className="container mx-auto px-4 py-8 mt-20 rounded-xl bg-white/10 backdrop-blur-sm shadow-xl border border-purple-500/30 text-white">
-            {children}
-          </main>
-        </WalletSelectorProvider>
+        {/* Wrap the app with ThirdwebProvider for Ethereum wallet integration */}
+        <ThirdwebProvider>
+          {/* Keep WalletSelectorProvider for NEAR wallet integration */}
+          <WalletSelectorProvider config={walletSelectorConfig}>
+            <Navigation />
+            <main className="container mx-auto px-4 py-8 mt-20 rounded-xl bg-white/10 backdrop-blur-sm shadow-xl border border-purple-500/30 text-white">
+              {children}
+            </main>
+          </WalletSelectorProvider>
+        </ThirdwebProvider>
       </body>
     </html>
   );
