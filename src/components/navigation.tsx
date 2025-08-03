@@ -2,7 +2,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useWalletSelector } from "@near-wallet-selector/react-hook"
-import { useWeb3Modal } from "@web3modal/react"
+import { useWeb3Modal, useWeb3ModalState } from "@web3modal/wagmi/react"
 import { useAccount, useDisconnect } from "wagmi"
 
 export const Navigation = () => {

@@ -10,7 +10,7 @@ import { setupMyNearWallet } from '@near-wallet-selector/my-near-wallet';
 import { setupMeteorWallet } from '@near-wallet-selector/meteor-wallet';
 import { setupMeteorWalletApp } from '@near-wallet-selector/meteor-wallet-app';
 import { setupBitteWallet } from '@near-wallet-selector/bitte-wallet';
-import { setupEthereumWallets } from '@near-wallet-selector/ethereum-wallets';
+// import { setupEthereumWallets } from '@near-wallet-selector/ethereum-wallets';
 import { setupHotWallet } from '@near-wallet-selector/hot-wallet';
 import { setupLedger } from '@near-wallet-selector/ledger';
 import { setupSender } from '@near-wallet-selector/sender';
@@ -20,8 +20,8 @@ import { setupWelldoneWallet } from '@near-wallet-selector/welldone-wallet';
 import { HelloNearContract, NetworkId } from '@/config';
 import { WalletSelectorProvider } from '@near-wallet-selector/react-hook';
 // Import Web3Modal for Ethereum wallet support
-import { Web3Modal } from "@web3modal/react";
-import { wagmiAdapter } from "@/wallets/web3modal";
+import { wagmiConfig } from "@/wallets/web3modal";
+import { WagmiConfig } from "wagmi";
 
 const walletSelectorConfig = {
   network: NetworkId,
@@ -50,14 +50,17 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" className="h-full bg-gradient-to-b from-indigo-950 to-purple-900 text-white">
       <body className="h-full bg-gradient-to-br from-indigo-950 via-purple-900 to-indigo-900">
-        <WalletSelectorProvider config={walletSelectorConfig}>
-          <Navigation />
-          <main className="container mx-auto px-4 py-8 mt-20 rounded-xl bg-white/10 backdrop-blur-sm shadow-xl border border-purple-500/30">
-            {children}
-          </main>
-          {/* Web3Modal component - must be outside the main layout */}
-          <Web3Modal config={wagmiAdapter.config} />
-        </WalletSelectorProvider>
+        {/* WagmiConfig for Ethereum wallet hooks */}
+        <WagmiConfig config={wagmiConfig}>
+          {/* Keep WalletSelectorProvider for NEAR wallet integration */}
+          <WalletSelectorProvider config={walletSelectorConfig}>
+            <Navigation />
+            <main className="container mx-auto px-4 py-8 mt-20 rounded-xl bg-white/10 backdrop-blur-sm shadow-xl border border-purple-500/30">
+              {children}
+            </main>
+          </WalletSelectorProvider>
+          {/* Web3modal will automatically render the modal UI */}
+        </WagmiConfig>
       </body>
     </html>
   )
