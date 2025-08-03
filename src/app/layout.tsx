@@ -46,11 +46,11 @@ interface RootLayoutProps {
 // Layout Component
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en" className="h-full bg-gradient-to-b from-background-light to-white dark:from-background-dark dark:to-gray-900">
-      <body className="h-full">
+    <html lang="en" className="h-full bg-gradient-to-b from-indigo-950 to-purple-900 text-white">
+      <body className="h-full bg-gradient-to-br from-indigo-950 via-purple-900 to-indigo-900">
         <WalletSelectorProvider config={walletSelectorConfig}>
           <Navigation />
-          <main className="container mx-auto px-4 py-8 bg-red-500 text-white">
+          <main className="container mx-auto px-4 py-8 mt-20 rounded-xl bg-white/10 backdrop-blur-sm shadow-xl border border-purple-500/30 text-white">
             {children}
           </main>
         </WalletSelectorProvider>
