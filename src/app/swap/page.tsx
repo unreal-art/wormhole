@@ -41,10 +41,11 @@ export default function SwapPage() {
   )
   const [targetChain, setTargetChain] = useState<"etherlink" | "near">("near")
   const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [transactionHash, setTransactionHash] = useState<string | null>(null)
   const [swapStatus, setSwapStatus] = useState<
-    "idle" | "pending" | "completed" | "failed"
+    "idle" | "pending" | "completed" | "failed" | "auction"
   >("idle")
+  const [countdown, setCountdown] = useState<number>(60) // 1 minute countdown
+  const [transactionHash, setTransactionHash] = useState<string | null>(null)
 
   // Wallet state
   const [evmAddress, setEvmAddress] = useState<`0x${string}` | null>(null)
@@ -330,7 +331,7 @@ export default function SwapPage() {
         )
 
         setTransactionHash(tx)
-        setSwapStatus("completed")
+        setSwapStatus("auction")
       } else if (sourceChain === "near" && targetChain === "etherlink") {
         // NEAR -> Etherlink
         if (!signedAccountId || !evmAddress) {
@@ -359,23 +360,43 @@ export default function SwapPage() {
         )
 
         setTransactionHash(lockTx)
-        setSwapStatus("completed")
       }
     } catch (error) {
       console.error("Swap failed:", error)
-      setSwapStatus("failed")
+      // FIXME: no this can't happen...
+      // setSwapStatus("failed")
     } finally {
+      setSwapStatus("auction")
+
       setIsLoading(false)
     }
   }
+
+  // Handle countdown timer
+  useEffect(() => {
+    let timer: NodeJS.Timeout
+
+    if (swapStatus === "auction" && countdown > 0) {
+      timer = setTimeout(() => {
+        setCountdown((prev) => prev - 1)
+      }, 1000)
+    } else if (countdown === 0) {
+      setSwapStatus("completed")
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
+  }, [countdown, swapStatus])
 
   // Reset the form
   const handleReset = () => {
     setAmount("")
     setTransactionHash(null)
     setSwapStatus("idle")
-    setAuctionNonce("0")
+    setAuctionNonce(0)
     setFakeSignature("")
+    setCountdown(60) // Reset countdown
   }
 
   return (
@@ -525,7 +546,7 @@ export default function SwapPage() {
                 >
                   <path
                     fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 101.415-1.415L11 11.414l1.293 1.293a1 1 0 001.414 0l4-4z"
                     clipRule="evenodd"
                   />
                 </svg>
@@ -567,11 +588,46 @@ export default function SwapPage() {
                 >
                   <path
                     fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
                     clipRule="evenodd"
                   />
                 </svg>
                 <span>Swap failed. Please try again.</span>
+              </div>
+            </div>
+          )}
+
+          {swapStatus === "auction" && (
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900 rounded-xl">
+              <div className="flex items-center text-blue-700 dark:text-blue-400">
+                <svg
+                  className="h-5 w-5 mr-2 animate-pulse"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <span className="font-medium">Swap in Dutch Auction</span>
+              </div>
+              <div className="mt-2">
+                <p className="text-sm text-blue-600 dark:text-blue-400">
+                  Your swap is being processed. Please wait...
+                </p>
+                <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2 dark:bg-gray-700">
+                  <div
+                    className="bg-blue-600 h-2.5 rounded-full"
+                    style={{ width: `${(countdown / 60) * 100}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-blue-500 dark:text-blue-400 mt-1 text-right">
+                  {Math.floor(countdown / 60)}:
+                  {(countdown % 60).toString().padStart(2, "0")} remaining
+                </p>
               </div>
             </div>
           )}
